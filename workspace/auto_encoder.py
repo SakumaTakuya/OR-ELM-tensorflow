@@ -6,10 +6,13 @@ import os
 import pandas as pd
 import sys
 import tensorflow as tf
+from tensorflow.keras import layers
 from sklearn import metrics
+from sklearn.decomposition import PCA
 sys.path.append('/home/sakuma/work/python/OR-ELM-tensorflow/')
 
 import or_elm as elm
+from rnn import Rnn
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 #%%
@@ -108,40 +111,58 @@ model.close()
 EOF解析によって時系列データの主成分分析を行うことができるか
 """
 
-
-
-
-
-
-
-
 #%%
 nX = np.loadtxt('/home/sakuma/work/python/OR-ELM-tensorflow/data/negative_data_0.csv', delimiter=',')
 X = np.loadtxt('/home/sakuma/work/python/OR-ELM-tensorflow/data/data_np_test_0.csv', delimiter=',')
 y = np.loadtxt('/home/sakuma/work/python/OR-ELM-tensorflow/data/label_np_test_0.csv', delimiter=',')
 
 #%%
+pca = None
+for i in range(5, 455):
+    pca = PCA(n_components=i)
+    pca.fit(X)
+    if np.sum(pca.explained_variance_ratio_) > 0.99:
+        break
+
+#%%
+nX = np.matmul(pca.components_, nX.T).T
+X = np.matmul(pca.components_, X.T).T
+#%%
 # T * C
 in_shape = X.shape[1]
 print("shape:", X.shape)
-model = elm.OR_ELM([in_shape], [in_shape // 4], [in_shape], forget_fact=1)
+model = elm.OR_ELM([in_shape], [in_shape // 2], [in_shape], forget_fact=1)
+oselm_r = elm.OS_ELM_Rec(
+    [in_shape], 
+    [in_shape // 2], 
+    [in_shape], 
+    batch_size=1,
+    constant=1e-5,
+    forget_fact=1)
+sess = model.session
 
 cfs = [changefinder.ChangeFinder() for i in range(in_shape)]
 for x in nX:
     map(lambda cf, x_n: cf.update(x_n), cfs, x)
     x = x[np.newaxis,:]
+    oselm_r.train(x, x, sess)
     model.train(x, x)
 
+#%%
 losses = []
+r_losses = []
 scores = []
 for x in X:
-    score = sum([cf.update(x_n) for cf, x_n in zip(cfs, x)]) 
+    score = max([cf.update(x_n) for cf, x_n in zip(cfs, x)]) 
     x = x[np.newaxis,:]
     loss = model.loss(x, x)
-    print(f"\ror_elm loss:{loss} | cf score:{score}", end="")
+    r_loss = oselm_r.loss(x, x, sess)
+    print(f"\ror_elm:{loss} | cf:{score} | rec:{r_loss}", end="")
     model.train(x, x)
+    oselm_r.train(x, x, sess)
 
     losses.append(loss)
+    r_losses.append(r_loss)
     scores.append(score)
 
 model.close()
@@ -182,3 +203,25 @@ plt.grid(True)
 plt.show()
 
 # %%
+for x in X:
+    score = max([cf.update(x_n) for cf, x_n in zip(cfs, x)]) 
+    x = x[np.newaxis,:]
+    loss = model.loss(x, x)
+    print(f"\ror_elm loss:{loss} | cf score:{score}", end="")
+    model.train(x, x)
+
+    losses.append(loss)
+    scores.append(score)
+
+#%%
+"""
+change finder は一次元向けのモデルであるため、考慮しなくてよさそう
+また、次元数が比較的大きいので古典的手法ではなくNN同士で比較する
+
+案
+    - RNN
+    - STFTスペクトルに変換して入力
+    
+"""
+
+rnn_model = Rnn()
