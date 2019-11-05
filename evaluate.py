@@ -41,11 +41,11 @@ if __name__ == '__main__':
 
 #%% load base data
     # 0番はgruで学習に使用している
-    normal_data = np.loadtxt(f'/home/sakuma/work/python/OR-ELM-tensorflow/data/data_normal_{data_no}.csv', delimiter=',')[:max_length//4]
-    anormaly_data = np.loadtxt(f'/home/sakuma/work/python/OR-ELM-tensorflow/data/data_{data_no}.csv', delimiter=',')[:max_length]
+    normal_data = np.loadtxt(f'data/data_normal_{data_no}.csv', delimiter=',')[:max_length//4]
+    anormaly_data = np.loadtxt(f'data/data_{data_no}.csv', delimiter=',')[:max_length]
 
     normal_label = np.zeros((len(normal_data)))
-    anormaly_label = np.loadtxt(f'/home/sakuma/work/python/OR-ELM-tensorflow/data/label_{data_no}.csv', delimiter=',')[:max_length]
+    anormaly_label = np.loadtxt(f'data/label_{data_no}.csv', delimiter=',')[:max_length]
 #%% create data
     normal_data, normal_nex = preprocessing.create_subseq(normal_data, look_back, pred_length)
     anormaly_data, anormaly_nex = preprocessing.create_subseq(anormaly_data, look_back, pred_length)

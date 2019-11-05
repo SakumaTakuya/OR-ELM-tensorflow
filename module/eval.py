@@ -26,7 +26,7 @@ def plot_mse(anormaly_mse, anormaly_label, cut=0, save_path=None):
         where=anormaly_label>0, 
         facecolor='red', alpha=0.5)
     sub.add_collection(clt)
-    sub.set_ylim([0, 1500])
+    # sub.set_ylim([0, 1500])
     sub.plot(anormaly_mse, label='mse')
     sub.legend()
 
