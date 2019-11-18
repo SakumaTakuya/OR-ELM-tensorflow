@@ -10,8 +10,12 @@ from sklearn import metrics
 
 
 def calcu_mse(value, predict, variance=0.1):
+    """
+        value.shape (data_num, pred, data shape)
+    """
     mse_value = [(v - p)**2 / variance for v, p in zip(value, predict)]
-    return  np.mean(np.array(mse_value), axis=2)
+    mse_value = np.array(mse_value)
+    return  np.mean(mse_value, axis=tuple(range(1, len(mse_value.shape))))
 
 def plot_mse(anormaly_mse, anormaly_label, cut=0, save_path=None):
     anormaly_mse = anormaly_mse[cut:]
@@ -32,7 +36,7 @@ def plot_mse(anormaly_mse, anormaly_label, cut=0, save_path=None):
 
     save_plot(save_path)
 
-    fig.show()
+    # fig.show()
     plt.clf()
     
 
@@ -48,11 +52,10 @@ def plot_auc(anormaly_mse, anormaly_label, save_path=None):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.grid(True)
-    plt.show()
 
     save_plot(save_path)
 
-    plt.show()
+    # plt.show()
     plt.clf()
 
     

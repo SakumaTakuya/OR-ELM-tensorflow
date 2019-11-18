@@ -106,3 +106,7 @@ venv.bak/
 .mypy_cache/
 
 workspace/
+
+*.meta
+
+img/
