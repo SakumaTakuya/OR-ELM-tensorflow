@@ -8,7 +8,7 @@ class OS_ELM:
         hi_shape, 
         init_x, 
         init_y, 
-        act=relu, 
+        act=np.tanh, 
         forget_fact=1, 
         regularizer=1/np.e**5,
         init_w = None,
@@ -36,15 +36,15 @@ class OS_ELM:
         self.h = self.act(x @ self.w + self.b)
         self.out = self.h @ self.beta
 
-    def update(self, y):
+    def update(self, h, y):
         f_p = self.p / (self.forget_fact * self.forget_fact)
-        inv = np.eye(len(y)) + self.h @ f_p @ self.h.T
-        self.p = f_p - f_p @ self.h.T @ np.linalg.inv(inv) @ self.h @ f_p
-        self.beta = self.beta + self.p @ self.h.T @ (y - self.out)
+        inv = np.eye(len(y)) + h @ f_p @ h.T
+        self.p = f_p - f_p @ h.T @ np.linalg.inv(inv) @ h @ f_p
+        self.beta = self.beta + self.p @ h.T @ (y - self.out)
 
     def train(self, x, y):
         self.input(x)
-        self.update(y)
+        self.update(self.h, y)
 
 
 # 遅延付き学習をどのように行うべきか？？？

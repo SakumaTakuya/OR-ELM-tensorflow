@@ -2,11 +2,36 @@
 参考:
 https://www.kabuku.co.jp/developers/time_series_anomaly_detect_deep_learning
 """
+
+import math
 import matplotlib.pyplot as plt
 from matplotlib import collections 
+from matplotlib import colors
 import numpy as np
 import os
 from sklearn import metrics
+
+
+class AdaptiveHotellingAnormalyCalculator:
+    def __init__(self):
+        self.mean = 0
+        self.mean2 = 0
+        self.var = 0
+        self.iter = 0
+
+    def next_score(self, value, predict):
+        prev_iter = self.iter
+        prev_mean2 = self.mean2
+
+        mse = np.mean((value - predict)**2)
+
+        self.iter += 1        
+        self.mean = (prev_iter * self.mean + mse) / self.iter
+        self.mean2 = self.mean ** 2
+        self.var = (prev_iter * (self.var + prev_mean2) + mse**2) / self.iter - self.mean2
+
+        return (mse - self.mean) ** 2 / self.var
+
 
 
 def calcu_mse(value, predict, variance=0.1):
@@ -17,30 +42,44 @@ def calcu_mse(value, predict, variance=0.1):
     mse_value = np.array(mse_value)
     return  np.mean(mse_value, axis=tuple(range(1, len(mse_value.shape))))
 
-def plot_mse(anormaly_mse, anormaly_label, cut=0, save_path=None):
+def plot_mse(anormaly_mse, anormaly_label=None, cut=0, save_path=None, can_flush=True, label='mse', xlim=None, ylim=None):
+    hsv2rgb = np.frompyfunc(lambda x : colors.hsv_to_rgb([x, 0.6, 1]), 1, 1)
+    
     anormaly_mse = anormaly_mse[cut:]
-    anormaly_label = anormaly_label[cut:]
+
     fig = plt.figure()
     sub = fig.add_subplot(111)
 
-    clt = collections.BrokenBarHCollection.span_where(
-        np.arange(anormaly_label.shape[0]), 
-        ymin=0, 
-        ymax=np.max(anormaly_mse), 
-        where=anormaly_label>0, 
-        facecolor='red', alpha=0.5)
-    sub.add_collection(clt)
-    # sub.set_ylim([0, 1500])
-    sub.plot(anormaly_mse, label='mse')
+    sub.plot(anormaly_mse, label=label)
     sub.legend()
+
+    if ylim is None:
+        sub.set_ylim([0, max(anormaly_mse)])
+    else:
+        sub.set_ylim([0, ylim])
+
+    if anormaly_label is not None:
+        anormaly_label = 0.5 * np.sin(anormaly_label[cut:] / 4 * np.pi) + 0.5
+        anormaly_label = np.convolve(anormaly_label, np.ones(512)/512)
+        anormaly_label = np.array(list(hsv2rgb(anormaly_label)))
+        anormaly_label = anormaly_label[np.newaxis]
+
+        x_lim = sub.get_xlim()
+        y_lim = sub.get_ylim()
+        sub.imshow(
+            anormaly_label[:len(anormaly_mse)], 
+            extent=[*x_lim, *y_lim], aspect='auto', alpha=0.5)
+
+    if xlim is not None:
+        sub.set_xlim(xlim)
 
     save_plot(save_path)
 
-    # fig.show()
-    plt.clf()
+    if can_flush:
+        plt.clf()
     
 
-def plot_auc(anormaly_mse, anormaly_label, save_path=None):
+def plot_auc(anormaly_mse, anormaly_label, save_path=None, can_flush=True, xlim=None):
     fpr, tpr, _ = metrics.roc_curve(
         np.where(anormaly_label == 0, 0, 1), 
         anormaly_mse)
@@ -48,6 +87,8 @@ def plot_auc(anormaly_mse, anormaly_label, save_path=None):
     auc = metrics.auc(fpr, tpr)
 
     plt.plot(fpr, tpr, label='ROC curve (area = %.2f)'%auc)
+    if xlim is not None:
+        plt.xlim(xlim)
     plt.legend()
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
@@ -56,7 +97,8 @@ def plot_auc(anormaly_mse, anormaly_label, save_path=None):
     save_plot(save_path)
 
     # plt.show()
-    plt.clf()
+    if can_flush:
+        plt.clf()
 
     
 def save_plot(save_path):
@@ -65,6 +107,17 @@ def save_plot(save_path):
 
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     plt.savefig(save_path)
+
+def plot(pred, nex, label, path_func, can_plot_mse=True, can_plot_auc=True, cut=0):
+
+    print(path_func('xxxxx'))
+    anorm_mse = calcu_mse(nex, pred)
+
+    if can_plot_mse:
+        plot_mse(anorm_mse, label, cut=cut, save_path=path_func('anorm_mse'))
+
+    if can_plot_auc:
+        plot_auc(anorm_mse, label[-len(anorm_mse):], save_path=path_func('auc'))
     
     
 
