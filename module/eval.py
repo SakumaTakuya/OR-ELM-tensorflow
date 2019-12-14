@@ -19,18 +19,26 @@ class AdaptiveHotellingAnormalyCalculator:
         self.var = 0
         self.iter = 0
 
-    def next_score(self, value, predict):
+    def next_score(self, value, predict, outlier=None):
         prev_iter = self.iter
         prev_mean2 = self.mean2
 
         mse = np.mean((value - predict)**2)
 
+        if outlier is not None:
+            stat = self.__get_stat(mse)
+            if stat > outlier:
+                return stat
+        
         self.iter += 1        
         self.mean = (prev_iter * self.mean + mse) / self.iter
         self.mean2 = self.mean ** 2
         self.var = (prev_iter * (self.var + prev_mean2) + mse**2) / self.iter - self.mean2
 
-        return (mse - self.mean) ** 2 / self.var
+        return self.__get_stat(mse)
+
+    def __get_stat(self, mse):
+        return (mse - self.mean) ** 2 / self.var if self.var != 0 else (mse - self.mean) ** 2
 
 
 
