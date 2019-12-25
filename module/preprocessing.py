@@ -24,16 +24,16 @@ def auto_pca(X, ratio=0.99):
 
     return np.matmul(pca.components_, X.T).T
 
-def create_subseq(ts, look_back, pred_length):
+def create_subseq(ts, look_back, pred_length, step=0):
     """
         return:
             sub_seq: len(sub_seq) = len(ts) - look_back - pred_length
                      look_back分のデータを受け取り、pred_length分だけ予測するためその分だけ遅れて出力する
     """
     sub_seq, next_values = [], []
-    for i in range(len(ts)-look_back-pred_length):  
+    for i in range(len(ts)-look_back-pred_length-step):  
         sub_seq.append(ts[i:i+look_back])
-        next_values.append(ts[i+look_back:i+look_back+pred_length])
+        next_values.append(ts[i+look_back+step:i+look_back+pred_length+step])
     return sub_seq, next_values
 
 def get_normal_data(look_back, pred_length, max_len=1092):

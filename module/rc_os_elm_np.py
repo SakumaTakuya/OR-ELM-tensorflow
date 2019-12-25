@@ -1,5 +1,7 @@
 #%%
 import numpy as np
+from scipy import stats
+
 
 #%%
 def generate_variational_weight(shape):
@@ -8,6 +10,7 @@ def generate_variational_weight(shape):
 
 def generate_reservoir_weight(shape, forget_fact=0.999):
     w = np.random.normal(0, 1, shape)
+    print(w.shape)
     sr = max(abs(np.linalg.eigvals(w)))
     return w / sr * forget_fact
 
@@ -41,7 +44,8 @@ class RC_OS_ELM:
         self.b = gen_b([hi_shape])
 
         self.h = act(leak_rate * (init_x @ self.w_in + self.b))
-        self.p = np.linalg.inv(np.random.rand(hi_shape * hi_shape).reshape((hi_shape, hi_shape)) * 0.01)#self.h.T @ self.h + regularizer * np.eye(hi_shape))
+        self.p = self.h.T @ self.h + regularizer * np.eye(hi_shape)
+        # self.p = np.linalg.inv(np.random.rand(hi_shape * hi_shape).reshape((hi_shape, hi_shape)) * 0.01)#self.h.T @ self.h + regularizer * np.eye(hi_shape))
         self.beta = self.p @ self.h.T @ init_y
 
         self.out = self.h @ self.beta
@@ -144,6 +148,51 @@ class RC_Max_Clip_OS_ELM:
         self.input(x)
         self.update(self.h, y)
 
+class RLS_ESN_Delay(RC_OS_ELM):
+    def __init__(self, 
+        hi_shape,
+        delay,
+        init_x, 
+        init_y, 
+        outlier_rate= 0.999,
+        act=np.tanh, 
+        forget_fact=1, 
+        leak_rate=0.9, 
+        regularizer=1/np.e**5,
+        gen_w_in=generate_variational_weight,
+        gen_b=generate_variational_weight,
+        gen_w_res=generate_reservoir_weight):
+        super().__init__(
+            hi_shape,
+            init_x,
+            init_y,
+            act,
+            forget_fact,
+            leak_rate,
+            regularizer,
+            gen_w_in=gen_w_in,
+            gen_b=gen_b,
+            gen_w_res=gen_w_res)
+        self.delay = delay
+        self.outlier_rate = outlier_rate
+        self.loss_queue = []
+
+    def train(self, x, y):
+        self.input(x)
+
+        loss = np.sum(np.square(y - self.out))
+        
+        del self.loss_queue[:-self.delay]
+
+        self.loss_queue.append(loss)
+        
+        # 毎度delay個前のデータのロスを見て学習するか判断する
+        if  len(self.loss_queue) == self.delay and \
+            loss > np.max(self.loss_queue) * self.outlier_rate:
+            return
+        
+        self.update(self.h, y)
+
 
 class RC_Delay_OS_ELM(RC_OS_ELM):
     def __init__(self, 
@@ -169,9 +218,9 @@ class RC_Delay_OS_ELM(RC_OS_ELM):
             forget_fact,
             leak_rate,
             regularizer,
-            gen_w_in,
-            gen_b,
-            gen_w_res)
+            gen_w_in=gen_w_in,
+            gen_b=gen_b,
+            gen_w_res=gen_w_res)
         self.out_queue_len = look_back // pred_len
         self.delay = delay
         self.pred_len = pred_len
@@ -183,23 +232,25 @@ class RC_Delay_OS_ELM(RC_OS_ELM):
         prev_h = self.h
         self.input(x)
 
-        loss = np.sum(np.square(y - self.out))
+        loss = np.mean((y - self.out) ** 2)
         
+        self.loss_queue.append(loss)
         self.output_queue.append(self.out)
+
+        score = (loss - np.mean(self.loss_queue)) / np.var(self.loss_queue)
 
         del self.loss_queue[:-self.delay]
         del self.output_queue[:-self.out_queue_len]
-        
+
         # 毎度delay個前のデータのロスを見て学習するか判断する
         if  len(self.loss_queue) == self.delay and \
             len(self.output_queue) == self.out_queue_len and \
-            loss > np.max(self.loss_queue) * self.outlier_rate:
+            score > stats.chi2.interval(self.outlier_rate, 1)[1]:
 
             self.h = prev_h
             self.input(np.array(self.output_queue).reshape(x.shape))
-
-        self.loss_queue.append(loss)
-        self.update(self.h, y)
+        else:
+            self.update(self.h, y)
 
 
 class RC_FP_ELM:
