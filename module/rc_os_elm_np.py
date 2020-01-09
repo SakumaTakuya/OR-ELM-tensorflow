@@ -189,6 +189,7 @@ class RLS_ESN_Delay(RC_OS_ELM):
         # 毎度delay個前のデータのロスを見て学習するか判断する
         if  len(self.loss_queue) == self.delay and \
             loss > np.max(self.loss_queue) * self.outlier_rate:
+            print('ret')
             return
         
         self.update(self.h, y)
