@@ -193,6 +193,45 @@ class RLS_ESN_Delay(RC_OS_ELM):
         
         self.update(self.h, y)
 
+class RLS_ESN_Test:
+    def __init__(self, 
+        hi_shape, 
+        init_x, 
+        init_y, 
+        act=np.tanh, 
+        forget_fact=1, 
+        leak_rate=0.9, 
+        regularizer=1/np.e**5,
+        max_diff=1.5,
+        gen_w_in=generate_variational_weight,
+        gen_b=generate_variational_weight,
+        gen_w_res=generate_reservoir_weight):
+
+        assert len(init_x) == len(init_y)
+
+        in_shape = init_x.shape[1]
+
+        self.forget_fact = forget_fact
+        self.leak_rate = leak_rate
+
+        self.hi_shape = hi_shape
+        self.act = act
+
+        self.w_in = gen_w_in([in_shape, hi_shape])
+        self.w_res = gen_w_res([hi_shape, hi_shape])
+
+        self.w = np.concatenate([
+                self.leak_rate * self.w_in,
+                (1 - self.leak_rate) * np.eye(hi_shape) + self.leak_rate * self.w_res])
+
+        print(init_x.shape, np.zeros([1,hi_shape]).shape, self.w.shape)
+
+        h1 = np.concatenate([init_x, np.zeros([1, hi_shape])]) @ self.w
+        h2 = leak_rate * (init_x @ self.w_in)
+
+        # 同じことが確認できた
+        assert np.all(np.isclose(h1, h2))
+
 
 class RC_Delay_OS_ELM(RC_OS_ELM):
     def __init__(self, 

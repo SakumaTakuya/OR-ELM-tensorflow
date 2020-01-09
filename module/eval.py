@@ -37,16 +37,15 @@ class AdaptiveWeightedStatisticCalculator:
         self.mean = 0
         self.mean2 = 0
         self.var = 0
-        self.iter = 0
         self.forget_factor = forget_factor
-        self.forget_sum = 0
+        self.forget_sum = 1
 
     def update(self, value):
         prev_forget = self.forget_sum
         prev_mean2 = self.mean2
 
-        self.iter += 1
-        self.forget_sum += self.forget_factor ** self.iter
+        self.forget_sum *= self.forget_factor
+        self.forget_sum += 1
 
         self.mean = (self.forget_factor * prev_forget * self.mean + value) / self.forget_sum
         self.mean2 = self.mean ** 2
@@ -56,6 +55,40 @@ class AdaptiveWeightedStatisticCalculator:
         return  (value - self.mean) ** 2 / self.var \
                 if np.all(self.var != 0) else \
                 (value - self.mean) ** 2 
+
+class ExponentiallyWeightedStatisticCalculator:
+    def __init__(self, alpha, init_mean=0, init_var=0):
+        self.alpha = alpha
+        self.mean = init_mean
+        self.var = init_var
+
+    def update(self, value):
+        diff = value - self.mean
+        incr = self.alpha * diff
+        self.mean = self.mean + incr
+        self.var = (1 - self.alpha) * (self.var + diff * incr)
+    
+    def get_hotelling_stat(self, value):
+        return  (value - self.mean) ** 2 / self.var \
+                if np.all(self.var != 0) else \
+                (value - self.mean) ** 2 
+
+
+class AdaptiveWeightedStatisticCalculator2:
+    def __init__(self, forget_factor):
+        self.forget_factor = forget_factor
+        self.weighted_sum = 0
+        self.forget_sum = 0
+        self.mean = 0
+
+    def update(self, value):
+        self.weighted_sum = self.forget_factor * self.weighted_sum + value
+        
+        self.forget_sum *= self.forget_factor
+        self.forget_sum += 1
+
+        self.mean = self.weighted_sum / self.forget_sum
+
 
 # class AdaptiveStatisticCalculator:
 #     def __init__(self):
