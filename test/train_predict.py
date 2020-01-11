@@ -78,20 +78,22 @@ class Evaluation:
     def save_score(self, path):
         np.savetxt(path, self.scores, delimiter=',')
 
-    def show_fig(self, auc=False, mse=True):
-        eval.plot_auc(
-            self.scores,
-            self.label,
-            can_flush=False)
-        plt.show()
+    def show_fig(self, can_show_auc=True, can_show_mse=True):
+        if can_show_auc:
+            eval.plot_auc(
+                self.scores,
+                self.label,
+                can_flush=False)
+            plt.show()
         
-        eval.plot_mse(
-            self.scores,
-            self.label,
-            can_flush=False,
-            xlim=[0, len(self.scores)],
-            ylim=[0, np.sort(self.scores[len(self.scores)//4:])[-1]*1.1])
-        plt.show()
+        if can_show_mse:
+            eval.plot_mse(
+                self.scores,
+                self.label,
+                can_flush=False,
+                xlim=[0, len(self.scores)],
+                ylim=[0, np.sort(self.scores[len(self.scores)//4:])[-1]*1.1])
+            plt.show()
 
 
 if __name__ == "__main__":

@@ -68,7 +68,7 @@ if __name__ == "__main__":
     leak_rate = 0.5
     regularizer = 1 / np.e ** 5
     unit = pred_length * 1 * in_shape
-    ada_forget = 0.99
+    ada_forget = 1
 
     delay = 0
     outlier_rate = 2
@@ -119,4 +119,5 @@ if __name__ == "__main__":
             'real',
             f'{data_type}_{anom}_look{look_back}_pred{pred_length}_adaf{ada_forget}_auc{evaluator.max_auc}.csv'))
     evaluator.show_fig()
+    print(evaluator.max_auc)
 
