@@ -21,11 +21,43 @@ from module import preprocessing
 from module import rc_os_elm_np
 
 
+def fit_score_offset(label, scores):
+    def move_label(label, i):
+        return  np.concatenate([np.zeros(i), label[:-i]]) \
+                if i > 0 else \
+                np.concatenate([label[-i:], np.zeros(-i)])
+
+    max_auc = -99999
+    max_offset = 0
+
+    diff = scores.shape[0] - label.shape[0]
+    if diff > 0:
+        label = np.concatenate([np.zeros(diff), label])
+    elif diff < 0:
+        scores = np.concatenate([np.zeros(-diff), scores])
+
+    for i in range(-1024, 1024):
+        l = move_label(label, i)
+
+        fpr, tpr, _ = metrics.roc_curve(
+            np.where(l == 0, 0, 1), 
+            scores)
+
+        auc = metrics.auc(fpr, tpr)
+
+        if auc > max_auc:
+            max_auc = auc
+            max_offset = i
+
+    label = move_label(label, max_offset)
+
+    return label, scores, max_auc, max_offset
+
 class Evaluation:
     def __init__(self, model, ada_forget):
         self.model = model
         self.adaMse = eval.AdaptiveWeightedStatisticCalculator(ada_forget)
-
+        self.preds = []
         self.label = None
         self.scores = []
         self.max_auc = 0
@@ -46,34 +78,10 @@ class Evaluation:
 
                 if can_save:  
                     self.scores.append(self.adaMse.get_hotelling_stat(mse))
+                    self.preds.append(out.squeeze())
     
     def fit_score_offset(self, label):
-        def move_label(label, i):
-            return  np.concatenate([np.zeros(i), label[:-i]]) \
-                    if i > 0 else \
-                    np.concatenate([label[-i:], np.zeros(-i)])
-
-        self.scores = np.array(self.scores)
-        diff = self.scores.shape[0] - label.shape[0]
-        if diff > 0:
-            label = np.concatenate([np.zeros(diff), label])
-        elif diff < 0:
-            self.scores = np.concatenate([np.zeros(-diff), self.scores])
-
-        for i in range(-2048, 2048):
-            l = move_label(label, i)
-
-            fpr, tpr, _ = metrics.roc_curve(
-                np.where(l == 0, 0, 1), 
-                self.scores)
-
-            auc = metrics.auc(fpr, tpr)
-
-            if auc > self.max_auc:
-                self.max_auc = auc
-                self.max_offset = i
-
-        self.label = move_label(label, self.max_offset)
+        self.label, self.scores, self.max_auc, self.max_offset = fit_score_offset(label, np.array(self.scores))
 
     def save_score(self, path):
         np.savetxt(path, self.scores, delimiter=',')

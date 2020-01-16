@@ -127,16 +127,16 @@ def calcu_mse(value, predict, variance=0.1):
     mse_value = np.array(mse_value)
     return  np.mean(mse_value, axis=tuple(range(1, len(mse_value.shape))))
 
-def plot_mse(anormaly_mse, anormaly_label=None, cut=0, save_path=None, can_flush=True, label='mse', xlim=None, ylim=None):
+def plot_mse(anormaly_mse, anormaly_label=None, cut=0, save_path=None, can_flush=True, label='mse', xlim=None, ylim=None, sub=plt.figure().add_subplot(111)):
     hsv2rgb = np.frompyfunc(lambda x : colors.hsv_to_rgb([x, 0.6, 1]), 1, 1)
     
     anormaly_mse = anormaly_mse[cut:]
 
-    fig = plt.figure()
-    sub = fig.add_subplot(111)
-
-    sub.plot(anormaly_mse, label=label)
-    sub.legend()
+    if label is not None:
+        sub.plot(anormaly_mse, label=label)
+        sub.legend()
+    else:
+        sub.plot(anormaly_mse)        
 
     if xlim is not None:
         sub.set_xlim(xlim)
@@ -145,7 +145,7 @@ def plot_mse(anormaly_mse, anormaly_label=None, cut=0, save_path=None, can_flush
         sub.set_ylim(ylim)
 
     if anormaly_label is not None:
-        anormaly_label = 0.5 * np.sin(anormaly_label[cut:] / 4 * np.pi) + 0.5
+        anormaly_label = np.sin(anormaly_label[cut:] / (max(anormaly_label)) * np.pi / 4)
         # anormaly_label = np.convolve(anormaly_label, np.ones(512)/512)
         anormaly_label = np.array(list(hsv2rgb(anormaly_label)))
         anormaly_label = anormaly_label[np.newaxis]

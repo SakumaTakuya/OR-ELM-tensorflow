@@ -21,6 +21,7 @@ from module import or_elm
 from module import preprocessing
 
 from module import rc_os_elm_np
+from module import os_elm_np
 
 from train_predict import Evaluation
 
@@ -60,15 +61,14 @@ if __name__ == "__main__":
     anom = '13'
 
     in_shape = 28
-    look_back = 1
+    look_back = 4
     pred_length = 1
-    unit = pred_length * 1 * in_shape
-    forget_fact = 0.999
+    unit = pred_length * in_shape * 1
+    forget_fact = 0.9999
     rc_forget = 0.9999
     leak_rate = 0.5
     regularizer = 1 / np.e ** 5
-    unit = pred_length * 1 * in_shape
-    ada_forget = 1
+    ada_forget = 0.9999
 
     delay = 0
     outlier_rate = 2
@@ -88,36 +88,50 @@ if __name__ == "__main__":
     anormaly_data, anormaly_nex = get_data(anom)
     label = np.loadtxt(os.path.join(data_path, anom, 'ground_anom.csv'))
 
-    mean_score = eval.AdaptiveStatisticCalculator()
-    evaluator = Evaluation(None, ada_forget)
-    for i in range(1):
-        elm = rc_os_elm_np.RLS_ESN_Delay(
-            hi_shape=unit,
-            forget_fact=forget_fact,
-            leak_rate=leak_rate,
-            regularizer=regularizer,
-            delay=delay,
-            outlier_rate=outlier_rate,
-            init_x=normal_data[:1],
-            init_y=normal_nex[:1],
-            gen_w_res=lambda x: rc_os_elm_np.generate_reservoir_weight(x, rc_forget))
-        
-        evaluator.model = elm
-        evaluator.scores.clear()
+    aucs = []
+    for look_back in [1, 2, 4, 8 , 16, 32, 64]:
+    for _ in range(10):
+    for i in range(10):
+        mean_score = eval.AdaptiveStatisticCalculator()
+        evaluator = Evaluation(None, ada_forget)
+        for j in range(1):
+            elm = rc_os_elm_np.RLS_ESN_Delay(
+                hi_shape=unit,
+                forget_fact=forget_fact,
+                leak_rate=leak_rate,
+                regularizer=regularizer,
+                delay=delay,
+                outlier_rate=outlier_rate,
+                init_x=normal_data[:1],
+                init_y=normal_nex[:1],
+                gen_w_res=lambda x: rc_os_elm_np.generate_reservoir_weight(x, rc_forget))
+            
+            # elm = os_elm_np.OS_ELM(
+            #     hi_shape=unit,
+            #     forget_fact=forget_fact,
+            #     regularizer=regularizer, 
+            #     init_x=normal_data[:1],
+            #     init_y=normal_nex[:1],
+            #     act=os_elm_np.relu)
 
-        evaluator.train(normal_data, normal_nex, can_save=False)
-        evaluator.train(anormaly_data, anormaly_nex,can_save=True)
+            evaluator.model = elm
+            evaluator.scores.clear()
 
-        mean_score.update(np.array(evaluator.scores))
+            evaluator.train(normal_data, normal_nex, can_save=False)
+            evaluator.train(anormaly_data, anormaly_nex,can_save=True)
 
-    evaluator.scores = mean_score.mean
-    evaluator.fit_score_offset(label)
-    evaluator.save_score(
-        os.path.join(
-            base_path,
-            'result',
-            'real',
-            f'{data_type}_{anom}_look{look_back}_pred{pred_length}_adaf{ada_forget}_auc{evaluator.max_auc}.csv'))
-    evaluator.show_fig()
-    print(evaluator.max_auc)
+            mean_score.update(np.array(evaluator.scores))
+
+        evaluator.scores = mean_score.mean[2048:]
+        evaluator.fit_score_offset(label)
+        # evaluator.show_fig(can_show_mse=True, can_show_auc=False)
+        aucs.append(evaluator.max_auc)
+        # evaluator.save_score(
+        #     os.path.join(
+        #         base_path,
+        #         'result',
+        #         'real',
+        #         f'{data_type}_{anom}_look{look_back}_pred{pred_length}_adaf{ada_forget}_auc{evaluator.max_auc}.csv'))
+        # evaluator.show_fig(can_show_mse=True, can_show_auc=False)
+    print(np.max(aucs))
 

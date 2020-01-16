@@ -46,5 +46,4 @@ class OS_ELM:
         self.input(x)
         self.update(self.h, y)
 
-
 # 遅延付き学習をどのように行うべきか？？？
